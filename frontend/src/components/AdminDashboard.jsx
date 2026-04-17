@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import API from "../api/axios";
 
 function AdminDashboard() {
-    const [view, setView] = useState("");
+    const [items, setItems] = useState([]);
+    const [orders, setOrders] = useState([]);
 
     const [form, setForm] = useState({
         name: "",
@@ -10,83 +11,50 @@ function AdminDashboard() {
         description: "",
     });
 
-    const [items, setItems] = useState([]);
-    const [orders, setOrders] = useState([]);
+    // 🔄 Load data on mount
+    useEffect(() => {
+        fetchItems();
+        fetchOrders();
+    }, []);
+
+    // 🛍️ Fetch Items
+    const fetchItems = async () => {
+        const res = await API.get("/items");
+        setItems(res.data);
+    };
+
+    // 📦 Fetch Orders
+    const fetchOrders = async () => {
+        const res = await API.get("/orders");
+        setOrders(res.data);
+    };
 
     // ➕ Add Item
     const handleAddItem = async (e) => {
         e.preventDefault();
 
-        try {
-            await API.post("/items", form);
-            alert("Item added 😏🔥");
-            setForm({ name: "", price: "", description: "" });
-        } catch (err) {
-            console.error(err);
-        }
+        await API.post("/items", form);
+        setForm({ name: "", price: "", description: "" });
+        fetchItems();
     };
 
-    // 🛠️ Get Items
-    const fetchItems = async () => {
-        try {
-            const res = await API.get("/items");
-            setItems(res.data);
-            setView("items");
-        } catch (err) {
-            console.error(err);
-        }
-    };
-
-    // 🔁 Toggle availability
+    // 🔁 Toggle
     const toggleItem = async (id) => {
         await API.patch(`/items/${id}/toggle`);
-        fetchItems(); // refresh
-    };
-
-    // 📦 Get Orders
-    const fetchOrders = async () => {
-        try {
-            const res = await API.get("/orders"); // admin route
-            setOrders(res.data);
-            setView("orders");
-        } catch (err) {
-            console.error(err);
-        }
+        fetchItems();
     };
 
     return (
-        <div>
-            <h2 className="text-xl font-semibold mb-3">
-                Admin Panel ⚙️
+        <div className="p-6 bg-gray-100 min-h-screen">
+            <h2 className="text-3xl font-bold mb-6">
+                Admin Dashboard ⚙️
             </h2>
 
-            {/* Buttons */}
-            <div className="grid gap-4 mb-6">
-                <button
-                    onClick={() => setView("add")}
-                    className="bg-blue-500 text-white p-3 rounded-xl"
-                >
-                    Add Item
-                </button>
+            {/* ➕ Add Item Card */}
+            <div className="bg-white p-5 rounded-2xl shadow mb-6">
+                <h3 className="font-semibold mb-3">Add Item</h3>
 
-                <button
-                    onClick={fetchItems}
-                    className="bg-yellow-500 text-white p-3 rounded-xl"
-                >
-                    Manage Items
-                </button>
-
-                <button
-                    onClick={fetchOrders}
-                    className="bg-red-500 text-white p-3 rounded-xl"
-                >
-                    View Orders
-                </button>
-            </div>
-
-            {/* ➕ Add Item */}
-            {view === "add" && (
-                <form onSubmit={handleAddItem} className="space-y-3">
+                <form onSubmit={handleAddItem} className="grid gap-3">
                     <input
                         type="text"
                         placeholder="Item Name"
@@ -94,7 +62,7 @@ function AdminDashboard() {
                         onChange={(e) =>
                             setForm({ ...form, name: e.target.value })
                         }
-                        className="border p-2 w-full rounded"
+                        className="border p-2 rounded"
                         required
                     />
 
@@ -105,7 +73,7 @@ function AdminDashboard() {
                         onChange={(e) =>
                             setForm({ ...form, price: e.target.value })
                         }
-                        className="border p-2 w-full rounded"
+                        className="border p-2 rounded"
                         required
                     />
 
@@ -116,58 +84,81 @@ function AdminDashboard() {
                         onChange={(e) =>
                             setForm({ ...form, description: e.target.value })
                         }
-                        className="border p-2 w-full rounded"
+                        className="border p-2 rounded"
                     />
 
-                    <button className="bg-green-500 text-white px-4 py-2 rounded">
+                    <button className="bg-green-500 text-white py-2 rounded-lg">
                         Add Item
                     </button>
                 </form>
-            )}
+            </div>
 
-            {/* 🛠️ Manage Items */}
-            {view === "items" && (
-                <div className="grid gap-3">
-                    {items.map((item) => (
-                        <div
-                            key={item._id}
-                            className="border p-3 rounded"
+            {/* 🛍️ Items Grid */}
+            <h3 className="text-xl font-semibold mb-3">Items</h3>
+
+            <div className="grid md:grid-cols-3 gap-4 mb-6">
+                {items.map((item) => (
+                    <div
+                        key={item._id}
+                        className="bg-white p-4 rounded-2xl shadow"
+                    >
+                        <h4 className="font-bold text-lg">
+                            {item.name}
+                        </h4>
+
+                        <p className="text-gray-600 mb-2">
+                            ₹{item.price}
+                        </p>
+
+                        <p className="text-sm mb-2">
+                            {item.description}
+                        </p>
+
+                        <span
+                            className={`text-xs px-2 py-1 rounded ${item.isAvailable
+                                    ? "bg-green-100 text-green-700"
+                                    : "bg-red-100 text-red-700"
+                                }`}
                         >
-                            <h3 className="font-bold">{item.name}</h3>
-                            <p>₹{item.price}</p>
-                            <p>
-                                Status:{" "}
-                                {item.isAvailable ? "Available" : "Hidden"}
-                            </p>
+                            {item.isAvailable ? "Available" : "Hidden"}
+                        </span>
 
-                            <button
-                                onClick={() => toggleItem(item._id)}
-                                className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
-                            >
-                                Toggle Status
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            )}
+                        <button
+                            onClick={() => toggleItem(item._id)}
+                            className="mt-3 w-full bg-blue-500 text-white py-1 rounded"
+                        >
+                            Toggle
+                        </button>
+                    </div>
+                ))}
+            </div>
 
             {/* 📦 Orders */}
-            {view === "orders" && (
-                <div>
-                    <h3 className="font-bold mb-2">All Orders</h3>
+            <h3 className="text-xl font-semibold mb-3">Orders</h3>
 
-                    {orders.map((order) => (
-                        <div
-                            key={order._id}
-                            className="border p-3 mb-2 rounded"
+            <div className="grid md:grid-cols-2 gap-4">
+                {orders.map((order) => (
+                    <div
+                        key={order._id}
+                        className="bg-white p-4 rounded-2xl shadow"
+                    >
+                        <p className="font-semibold">
+                            {order.user?.name}
+                        </p>
+
+                        <p>Total: ₹{order.totalAmount}</p>
+
+                        <p
+                            className={`text-sm ${order.status === "paid"
+                                    ? "text-green-600"
+                                    : "text-red-500"
+                                }`}
                         >
-                            <p>User: {order.user?.name}</p>
-                            <p>Total: ₹{order.totalAmount}</p>
-                            <p>Status: {order.status}</p>
-                        </div>
-                    ))}
-                </div>
-            )}
+                            {order.status}
+                        </p>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
